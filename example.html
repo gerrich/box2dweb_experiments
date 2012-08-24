@@ -1,5 +1,6 @@
 <html>
-   <head>
+  <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
       <title>Box2dWeb example</title>
    </head>
    <body onload="init();">
@@ -21,7 +22,8 @@
          	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
          	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
          	,	b2DebugDraw = Box2D.Dynamics.b2DebugDraw
-          ,  b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef
+          , b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef
+          , b2ContactListener = Box2D.Dynamics.b2ContactListener
             ;
          
          world = new b2World(
@@ -60,6 +62,21 @@
          fixDef.shape.SetAsOrientedBox(thickness, height / 2 - gap, new b2Vec2(width, height / 2), 0.0);
          groundBody.CreateFixture(fixDef);
          
+         var holeBody = world.CreateBody(bodyDef);
+
+         fixDef.isSensor = true; 
+         fixDef.userData = {type:"hole"}; 
+         fixDef.shape.SetAsOrientedBox(thickness, thickness, new b2Vec2(0, 0), 0.0);
+         holeBody.CreateFixture(fixDef);
+         fixDef.shape.SetAsOrientedBox(thickness, thickness, new b2Vec2(width, 0), 0.0);
+         holeBody.CreateFixture(fixDef);
+         fixDef.shape.SetAsOrientedBox(thickness, thickness, new b2Vec2(width, height), 0.0);
+         holeBody.CreateFixture(fixDef);
+         fixDef.shape.SetAsOrientedBox(thickness, thickness, new b2Vec2(0, height), 0.0);
+         holeBody.CreateFixture(fixDef);
+         fixDef.isSensor = false; 
+         fixDef.userData = undefined; 
+
          //create some objects
          bodyDef.type = b2Body.b2_dynamicBody;
          for(var i = 0; i < 10; ++i) {
@@ -89,7 +106,32 @@
 			debugDraw.SetFillAlpha(0.3);
 			debugDraw.SetLineThickness(1.0);
 			debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
-			world.SetDebugDraw(debugDraw);
+      world.SetDebugDraw(debugDraw);
+
+      var contact_listener = new b2ContactListener();
+      var items_to_delete = [];
+
+      contact_listener.BeginContact = function(contact) {
+        var fixA = contact.GetFixtureA();
+        var fixB = contact.GetFixtureB();
+
+        var obj1; // hole
+        var obj2;
+        var dataA = fixA.GetUserData();
+        var dataB = fixB.GetUserData();
+        if (typeof(dataA) == "object" && dataA != null && dataA.type == "hole") {
+          obj1 = fixA;
+          obj2 = fixB;
+        } else if (typeof(dataB) == "object" && dataB != null && dataB.type == "hole") {
+          obj1 = fixB;
+          obj2 = fixA;
+        } else {
+          return;
+        }
+        console.log("add to remove_list");
+        items_to_delete.push(obj2.GetBody());
+      };
+      world.SetContactListener(contact_listener);
          
          window.setInterval(update, 1000 / 60);
 
@@ -104,7 +146,7 @@
             document.addEventListener("mousemove", handleMouseMove, true);
          }, true);
          
-         document.addEventListener("mouseup", function() {
+         document.addEventListener("mouseup", function(e) {
             document.removeEventListener("mousemove", handleMouseMove, true);
             isMouseDown = false;
             handleMouseMove(e);
@@ -179,6 +221,11 @@
             world.Step(1 / 60, 10, 10);
             world.DrawDebugData();
             world.ClearForces();
+
+            while(items_to_delete.length) {
+              world.DestroyBody(items_to_delete.pop());
+              console.log("+1");
+            }
          };
          
          //helpers
