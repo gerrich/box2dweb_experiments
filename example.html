@@ -25,14 +25,14 @@
             ;
          
          world = new b2World(
-               new b2Vec2(0, 10)    //gravity
+               new b2Vec2(0, 0)    //gravity
             ,  true                 //allow sleep
          );
          
          var fixDef = new b2FixtureDef;
          fixDef.density = 1.0;
          fixDef.friction = 0.5;
-         fixDef.restitution = 0.2;
+         fixDef.restitution = 0.8;
          
          var bodyDef = new b2BodyDef;
 
@@ -42,17 +42,28 @@
          bodyDef.position.y = 0;
          fixDef.shape = new b2PolygonShape;
          var groundBody = world.CreateBody(bodyDef);
-         
-         fixDef.shape.SetAsOrientedBox(10, 0.5, new b2Vec2(9, 12), 0.05);
+
+         var width = 20;
+         var height = 20.0 * 2 / 3;
+         var gap = 1.2;
+         var thickness = 0.1;
+
+         fixDef.shape.SetAsOrientedBox(width / 2 - gap, thickness, new b2Vec2(width / 2, 0), 0.0);
          groundBody.CreateFixture(fixDef);
          
-         fixDef.shape.SetAsOrientedBox(0.5, 5, new b2Vec2(18, 6), 0.05);
+         fixDef.shape.SetAsOrientedBox(thickness, height / 2 - gap, new b2Vec2(0, height / 2), 0.0);
+         groundBody.CreateFixture(fixDef);
+         
+         fixDef.shape.SetAsOrientedBox(width / 2 - gap, thickness, new b2Vec2(width / 2, height), 0.0);
+         groundBody.CreateFixture(fixDef);
+         
+         fixDef.shape.SetAsOrientedBox(thickness, height / 2 - gap, new b2Vec2(width, height / 2), 0.0);
          groundBody.CreateFixture(fixDef);
          
          //create some objects
          bodyDef.type = b2Body.b2_dynamicBody;
          for(var i = 0; i < 10; ++i) {
-            if(Math.random() > 0.5) {
+            if(0 &&  Math.random() > 0.5) {
                fixDef.shape = new b2PolygonShape;
                fixDef.shape.SetAsBox(
                      Math.random() + 0.1 //half width
@@ -60,11 +71,14 @@
                );
             } else {
                fixDef.shape = new b2CircleShape(
-                  Math.random() + 0.1 //radius
+                  0.5//Math.random() + 0.1 //radius
                );
             }
             bodyDef.position.x = Math.random() * 10;
             bodyDef.position.y = Math.random() * 10;
+
+            bodyDef.linearDamping = 0.1;
+            bodyDef.angularDamping = 0.1;
             world.CreateBody(bodyDef).CreateFixture(fixDef);
          }
          
@@ -93,8 +107,9 @@
          document.addEventListener("mouseup", function() {
             document.removeEventListener("mousemove", handleMouseMove, true);
             isMouseDown = false;
-            mouseX = undefined;
-            mouseY = undefined;
+            handleMouseMove(e);
+            //mouseX = undefined;
+            //mouseY = undefined;
          }, true);
          
          function handleMouseMove(e) {
@@ -137,7 +152,7 @@
                   md.bodyB = body;
                   md.target.Set(mouseX, mouseY);
                   md.collideConnected = true;
-                  md.maxForce = 300.0 * body.GetMass();
+                  md.maxForce = 0;// 300.0 * body.GetMass();
                   mouseJoint = world.CreateJoint(md);
                   body.SetAwake(true);
                }
@@ -147,6 +162,15 @@
                if(isMouseDown) {
                   mouseJoint.SetTarget(new b2Vec2(mouseX, mouseY));
                } else {
+                  if (mouseJoint) {
+                    var body = mouseJoint.GetBodyB();
+                    var anchor = mouseJoint.GetAnchorB();
+                    var mass = body.GetMass() * 5;
+                    var impulse = new b2Vec2(
+                        -(mouseX - anchor.x) * mass,
+                        -(mouseY - anchor.y) * mass);
+                    body.ApplyImpulse(impulse, anchor);
+                  }
                   world.DestroyJoint(mouseJoint);
                   mouseJoint = null;
                }
